@@ -6,6 +6,10 @@ At a glance you can see which processes are actively accessing files (and how ac
 
 It's useful to see what that sneaky program is doing in the background, where those persky config files are located, and it's just plain fun.
 
+#### Watch It In Action:
+
+![Demo](https://raw.githubusercontent.com/nicnovak/what-is-my-computer-doing/master/media/demo.gif)
+
 ## Getting Started
 
 The app parses the tail of a log produced by running DTrace, so you'll first need to start up DTrace (requires sudo). In root directy of the app, run:
