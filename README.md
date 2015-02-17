@@ -4,7 +4,7 @@
 
 At a glance you can see which processes are actively accessing files (and how actively based on the size of the process name), as well as which files it's touching. 
 
-Everything is shown real-time. It's useful to see what that sneaky program is doing in the background, where those persky config files are located, and it's just plain fun.
+Everything is shown real-time. It's useful to see what that sneaky program is doing in the background, where those pesky config files are located, and it's just plain fun to watch.
 
 #### Watch It In Action:
 
