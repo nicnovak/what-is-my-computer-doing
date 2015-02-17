@@ -1,0 +1,209 @@
+ <html>
+      <head>
+        <title>What The F*** Is My Computer Doing?</title>
+        <style>
+        </style>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.12/angular.min.js"></script>
+        <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.7.0/underscore-min.js"></script>
+
+        <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,300,700,800,600' rel='stylesheet' type='text/css'>
+       
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+        <style>
+
+        *{
+          font-family: 'Open Sans', sans-serif;
+        }
+
+        body{
+          background: black;
+        }
+
+        .accent2{
+          color: #f1c40f;
+        }
+        .accent1{
+          color: #34cf76;
+        }
+        .accent_dark{
+          color: #7f8c8d;
+        }
+        .log{
+          color: #ccc;
+          font-size: 12px;
+          white-space:nowrap;
+          font-family: monaco, Courier, monospace;
+        }
+
+        .mono{
+          font-family: monaco, Courier, monospace;
+        }
+        .proc{
+          color:white;
+          cursor: pointer;
+        }
+
+        .file{
+          color:white;
+        }
+
+        .container{
+          padding:10px;
+        }
+
+        h2{
+          color:white;
+        }
+
+        .procname{
+          color: white;
+        }
+        </style>
+        <script>        
+
+          var app = angular.module('myApp',[]);
+
+          app.controller('MainController', function($http, $scope, $interval) {
+
+            $scope.Math = Math;
+            $scope.dataLog = [];
+            $scope.procCounts = {};
+            $scope.fileCounts = {};
+            $scope.filesByProc = {};
+            
+            $scope.selectedProc = "";
+
+            $scope.virgin = true; 
+
+            var source = new EventSource("/log");
+
+            $scope.setProc = function(p){
+              $scope.selectedProc = p;
+              console.log("current proc is " + p)
+            };
+
+            source.onmessage = function(event) {
+
+              $scope.$apply(function(){
+
+                 matches = /\[(\w+)\],(.*)/.exec(event.data);
+
+                 if(matches){
+                    $scope.dataLog.push({
+                    raw: event.data,
+                    process: matches[1],
+                    file: matches[2]
+                   });
+                 }
+
+                 $scope.dataLog = _.last($scope.dataLog, 50);
+
+                 // Get processes 
+
+                 processesInstances = _.pluck($scope.dataLog, "process");
+                 processes = _.unique(processesInstances);
+
+                 _.each(processes, function(proc){
+                  $scope.procCounts[proc] = {
+                    count: _.countBy($scope.dataLog, function(x){ return x.process == proc}).true,
+                    created_at: new Date()
+                  }
+
+                  if(typeof $scope.filesByProc[proc] == "undefined" ){
+                    $scope.filesByProc[proc] = [];
+                  }
+                  else{
+                    filesForProc = _.unique(_.pluck(_.select($scope.dataLog, function(x){return x.process == proc}), "file"))
+
+                    _.each(filesForProc, function(ff){
+                      $scope.filesByProc[proc].push(ff);
+                    });
+                  
+                    $scope.filesByProc[proc] = _.last(_.unique($scope.filesByProc[proc]),50);
+                  }
+                  
+                 });
+
+                 // Get files
+
+                 fileInstances = _.pluck($scope.dataLog, "file");
+                 files = _.unique(fileInstances);
+
+                 _.each(files, function(file){
+                  $scope.fileCounts[file] = {
+                    count: _.countBy($scope.dataLog, function(x){ return x.file == file}).true,
+                    created_at: new Date()
+                  }
+                 });
+
+                 if($scope.virgin){
+                  $scope.selectedProc = _.keys($scope.procCounts)[0];
+                  $scope.virgin = false;
+                 }
+
+                 // Remove procs that have had no activity in 5 seconds
+
+                _.each($scope.procCounts, function(v,k){
+                   tFuture = new Date(v.created_at.getTime());
+                   tFuture.setSeconds( tFuture.getSeconds() + 5 ); 
+                   if(tFuture < new Date()){
+                    $scope.procCounts[k].count = 0;
+                   }
+                });
+                
+
+                // Mark inactive files 
+
+                _.each($scope.fileCounts, function(v,k){
+                   tFuture = new Date(v.created_at.getTime());
+                   tFuture.setSeconds( tFuture.getSeconds() + 5 ); 
+                   if(tFuture < new Date()){
+                     $scope.fileCounts[k].count = 0;
+                   }
+                });
+
+
+
+              });
+             
+            };
+
+          });
+          
+        </script>
+  </head>
+
+  <body ng-app = "myApp">
+  <div>
+    <center><h2 class="mono">What The F*** Is My Computer Doing Right Now?</h2></center>
+  </div>
+    <div ng-controller="MainController" class="container">
+      <div class="row">
+    
+        <div class="col-xs-2">
+          
+          <div class="proc" ng-repeat="(k,v) in procCounts" ng-click="setProc(k)">
+            <span style="font-size:{{Math.max(12, v.count)}}px;" ng-class="{accent1: selectedProc == k, accent_dark: v.count == 0}">{{k}}</span>
+          </div>
+
+        </div>
+        <div class="col-xs-7">
+        
+          <span class="procname" ng-if="selectedProc != ''"><span class="accent1">{{selectedProc}}</span> is accessing these files:<br/><br/></span>
+          <div class="file" ng-repeat="file in filesByProc[selectedProc]">
+            <span ng-class="{accent_dark: fileCounts[file].count == 0}" style="font-size:{{Math.max(12, fileCounts[file].count)}}px">{{file}}</span>
+          </div>
+        </div>
+
+        <div class="col-xs-3">
+          <div class="log" ng-repeat="l in dataLog track by $index"><span class="accent2">{{$index}}</span> {{l.raw}}</div>
+        </div>
+
+      </div>
+      
+    </div>
+  </body>
+
+</html>
